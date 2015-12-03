@@ -10,5 +10,5 @@ if(__LINUX__)
 set(EXT_LIBS csi-avro-utils ${CSI_KAFKA_LIBS})
 endif()
 
-add_subdirectory(program)
+add_subdirectory(src)
 
