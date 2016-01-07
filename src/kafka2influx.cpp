@@ -20,6 +20,7 @@
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/console.hpp>
 #include <boost/asio.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/thread/thread.hpp>
@@ -219,9 +220,13 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
 
 // --topic collectd.graphite --broker 10.1.47.4 --influxdb 10.1.47.16:8086 --database collectd --template "hostgroup.host...resource.measurement*"
 
+
+
+
 int main(int argc, char** argv)
 {
     boost::log::trivial::severity_level log_level;
+    boost::log::add_console_log(std::cout, boost::log::keywords::format = ">> %Message%");
     boost::program_options::options_description desc("options");
     desc.add_options()
         ("help", "produce help message")
