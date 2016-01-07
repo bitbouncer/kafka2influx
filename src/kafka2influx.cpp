@@ -16,6 +16,7 @@
 #include <chrono>
 #include <sstream>
 #include <array>
+#include <stdexcept>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
@@ -179,14 +180,14 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
     if (parts.size() != 3)
     {
         std::string what = std::string("parse error - bad graphite format: ") + s;
-        throw std::exception(what.c_str());
+        throw std::invalid_argument(what.c_str());
     }
 
     std::vector<std::string> tokens = parse_metric(parts[0]);
     if (tokens.size() < message_index)
     {
         std::string what = std::string("parse error - to few tags: ") + s;
-		throw std::exception(what.c_str());
+        throw std::invalid_argument(what.c_str());
     }
 
     //measurement name
