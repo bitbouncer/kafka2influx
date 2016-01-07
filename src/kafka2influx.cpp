@@ -226,7 +226,7 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
 int main(int argc, char** argv)
 {
     boost::log::trivial::severity_level log_level;
-    boost::log::add_console_log(std::cout, boost::log::keywords::format = ">> %Message%");
+    boost::log::add_console_log(std::cerr, boost::log::keywords::format = ">> %Message%");
     boost::program_options::options_description desc("options");
     desc.add_options()
         ("help", "produce help message")
@@ -235,6 +235,7 @@ int main(int argc, char** argv)
         ("template", boost::program_options::value<std::string>(), "template")
         ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
 		("database", boost::program_options::value<std::string>(), "database")
+        ("batch_size", boost::program_options::value<int>()->default_value(1000), "batch_size")
         ("log_level", boost::program_options::value<boost::log::trivial::severity_level>(&log_level)->default_value(boost::log::trivial::info), "log level to output");
         ;
 
@@ -322,6 +323,18 @@ int main(int argc, char** argv)
         std::cout << "--template must be specified" << std::endl;
         return 0;
     }
+
+    int batch_size;
+    if (vm.count("batch_size"))
+    {
+        batch_size = vm["batch_size"].as<int>();
+    }
+    else
+    {
+        std::cout << "--batch_size must be specified" << std::endl;
+        return 0;
+    }
+
 
 	auto ot = ordered_tags(tags);
 	int  mi = measurement_index(tags);
@@ -418,7 +431,7 @@ int main(int argc, char** argv)
 				auto request = csi::create_http_request(csi::http::POST, uri, {}, std::chrono::milliseconds(60000));
 				avro::StreamWriter writer(request->tx_content());
 
-				size_t items_to_send = std::min<size_t>(to_send.size(), 100);
+                size_t items_to_send = std::min<size_t>(to_send.size(), batch_size);
 				std::vector<std::string>::const_iterator cursor = to_send.begin();
 				for (size_t i = 0; i != items_to_send; ++i, ++cursor)
 					writer.writeBytes((const uint8_t*)cursor->data(), cursor->size());
