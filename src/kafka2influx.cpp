@@ -221,10 +221,6 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
 
 int main(int argc, char** argv)
 {
-    int32_t kafka_port = 9092;
-    std::string topic;
-    std::vector<csi::kafka::broker_address> brokers;
-
     boost::log::trivial::severity_level log_level;
     boost::program_options::options_description desc("options");
     desc.add_options()
@@ -250,6 +246,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    std::string topic;
     if (vm.count("topic"))
     {
         topic = vm["topic"].as<std::string>();
@@ -260,6 +257,8 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    int32_t kafka_port = 9092;
+    std::vector<csi::kafka::broker_address> kafka_brokers;
     if (vm.count("broker"))
     {
         std::string s = vm["broker"].as<std::string>();
@@ -273,26 +272,17 @@ int main(int argc, char** argv)
         while (last_separator != std::string::npos)
         {
             std::string host = s.substr(last_separator + 1);
-            brokers.push_back(csi::kafka::broker_address(host, kafka_port));
+            kafka_brokers.push_back(csi::kafka::broker_address(host, kafka_port));
             s = s.substr(0, last_separator);
             last_separator = s.find_last_of(',');
         }
-        brokers.push_back(csi::kafka::broker_address(s, kafka_port));
+        kafka_brokers.push_back(csi::kafka::broker_address(s, kafka_port));
     }
     else
     {
         std::cout << "--broker must be specified" << std::endl;
         return 0;
     }
-
-    std::cout << "broker(s)      : ";
-    for (std::vector<csi::kafka::broker_address>::const_iterator i = brokers.begin(); i != brokers.end(); ++i)
-    {
-        std::cout << i->host_name << ":" << i->port;
-        if (i != brokers.end() - 1)
-            std::cout << ", ";
-    }
-    std::cout << std::endl;
 
 	std::string influxuri;
 	if (vm.count("influxdb"))
@@ -332,6 +322,16 @@ int main(int argc, char** argv)
 	int  mi = measurement_index(tags);
 	bool wildcard = true;
 
+
+    std::string kafka_broker_str = "";
+    for (std::vector<csi::kafka::broker_address>::const_iterator i = kafka_brokers.begin(); i != kafka_brokers.end(); ++i)
+    {
+        kafka_broker_str += i->host_name + ":" + std::to_string(i->port);
+        if (i != kafka_brokers.end() - 1)
+            kafka_broker_str += ", ";
+    }
+
+    BOOST_LOG_TRIVIAL(info) << "kafka broker(s): " << kafka_broker_str;
     BOOST_LOG_TRIVIAL(info) << "topic             : " << topic;
     BOOST_LOG_TRIVIAL(info) << "template          : " << vm["template"].as<std::string>();
     BOOST_LOG_TRIVIAL(info) << "measurement index : " << mi;
@@ -345,9 +345,9 @@ int main(int argc, char** argv)
     try
     {
         csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 10000);
-        consumer.connect(brokers);
+        consumer.connect(kafka_brokers);
         //std::vector<int64_t> result = consumer.get_offsets();
-        consumer.connect_forever(brokers);
+        consumer.connect_forever(kafka_brokers);
 
 	    consumer.set_offset(csi::kafka::earliest_available_offset);
 		//consumer.set_offset(csi::kafka::latest_offsets);
