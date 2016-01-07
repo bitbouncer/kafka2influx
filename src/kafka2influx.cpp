@@ -364,7 +364,7 @@ int main(int argc, char** argv)
 
     try
     {
-        csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 1000000);
+        csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 100000);
         consumer.connect(kafka_brokers);
         //std::vector<int64_t> result = consumer.get_offsets();
         consumer.connect_forever(kafka_brokers);
