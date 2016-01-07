@@ -349,8 +349,8 @@ int main(int argc, char** argv)
         //std::vector<int64_t> result = consumer.get_offsets();
         consumer.connect_forever(brokers);
 
-	    //consumer.set_offset(csi::kafka::earliest_available_offset);
-		consumer.set_offset(csi::kafka::latest_offsets);
+	    consumer.set_offset(csi::kafka::earliest_available_offset);
+		//consumer.set_offset(csi::kafka::latest_offsets);
 
         csi::http_client http_handler(ios);
 
