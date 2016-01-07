@@ -16,7 +16,6 @@
 #include <chrono>
 #include <sstream>
 #include <array>
-#include <stdexcept>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
@@ -34,6 +33,7 @@
 #include <boost/uuid/string_generator.hpp>
 #include <boost/chrono/thread_clock.hpp>
 #include <boost/tokenizer.hpp>
+#include <boost/timer/timer.hpp>
 #include <csi_http/server/http_server.h>
 #include <csi_http/csi_http.h>
 #include <csi_http/client/http_client.h>
@@ -179,14 +179,14 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
     if (parts.size() != 3)
     {
         std::string what = std::string("parse error - bad graphite format: ") + s;
-        throw std::invalid_argument(what.c_str());
+        throw std::exception(what.c_str());
     }
 
     std::vector<std::string> tokens = parse_metric(parts[0]);
     if (tokens.size() < message_index)
     {
         std::string what = std::string("parse error - to few tags: ") + s;
-		throw std::invalid_argument(what.c_str());
+		throw std::exception(what.c_str());
     }
 
     //measurement name
@@ -216,19 +216,15 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
     return message;
 }
 
+// --topic collectd.graphite --broker 10.1.47.4 --influxdb 10.1.47.16:8086 --database collectd --template "hostgroup.host...resource.measurement*"
 
 int main(int argc, char** argv)
 {
-
-	std::string input = "mesos_master.f006-720-mm.internal.machines.disk-sda.disk_octets.read 449266176 1448119217";
-
-	//std::string input = "kafka.f013-520-kafka.internal.machines.smart-sdg.smart_attribute-total-lbas-read.current 1000 111111111";
-	//std::string templ = "hostgroup.host...resource.measurement*";
-
     int32_t kafka_port = 9092;
     std::string topic;
     std::vector<csi::kafka::broker_address> brokers;
 
+    boost::log::trivial::severity_level log_level;
     boost::program_options::options_description desc("options");
     desc.add_options()
         ("help", "produce help message")
@@ -237,13 +233,15 @@ int main(int argc, char** argv)
         ("template", boost::program_options::value<std::string>(), "template")
         ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
 		("database", boost::program_options::value<std::string>(), "database")
+        ("log_level", boost::program_options::value<boost::log::trivial::severity_level>(&log_level)->default_value(boost::log::trivial::info), "log level to output");
         ;
 
     boost::program_options::variables_map vm;
     boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
     boost::program_options::notify(vm);
 
-    boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::info);
+    boost::log::core::get()->set_filter(boost::log::trivial::severity >= log_level);
+    BOOST_LOG_TRIVIAL(info) << "loglevel " << log_level;
 
     if (vm.count("help"))
     {
@@ -294,8 +292,6 @@ int main(int argc, char** argv)
             std::cout << ", ";
     }
     std::cout << std::endl;
-    std::cout << "topic          : " << topic << std::endl;
-
 
 	std::string influxuri;
 	if (vm.count("influxdb"))
@@ -332,8 +328,14 @@ int main(int argc, char** argv)
     }
 
 	auto ot = ordered_tags(tags);
-	int  mi       = measurement_index(tags);
+	int  mi = measurement_index(tags);
 	bool wildcard = true;
+
+    BOOST_LOG_TRIVIAL(info) << "topic             : " << topic;
+    BOOST_LOG_TRIVIAL(info) << "template          : " << vm["template"].as<std::string>();
+    BOOST_LOG_TRIVIAL(info) << "measurement index : " << mi;
+    BOOST_LOG_TRIVIAL(info) << "influxdb          : " << influxuri;
+    BOOST_LOG_TRIVIAL(info) << "database          : " << database;
 
     boost::asio::io_service ios;
     std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(ios));
@@ -350,6 +352,11 @@ int main(int argc, char** argv)
 		consumer.set_offset(csi::kafka::latest_offsets);
 
         csi::http_client http_handler(ios);
+
+        size_t metrics_counter = 0;
+       
+        boost::chrono::system_clock::time_point last = boost::chrono::system_clock::now();
+        boost::chrono::milliseconds  sixty_seconds(60 * 1000);
 
         while (true)
         {
@@ -385,12 +392,12 @@ int main(int argc, char** argv)
 								else
 								{
 									assert(false); // should never get here
-									std::cerr << "could not parse: " << *k;
+                                    BOOST_LOG_TRIVIAL(error) << "could not parse: " << *k;
 								}
 							}
 							catch (std::exception& e)
 							{
-								std::cout << e.what() << std::endl;
+                                BOOST_LOG_TRIVIAL(error) << e.what();
 							}
 						}
 					}
@@ -410,27 +417,54 @@ int main(int argc, char** argv)
 				for (size_t i = 0; i != items_to_send; ++i, ++cursor)
 					writer.writeBytes((const uint8_t*)cursor->data(), cursor->size());
 				writer.flush();
-				auto result = http_handler.perform(request);
-				if (result->ok())
-				{
-					to_send.erase(to_send.begin(), to_send.begin() + items_to_send);
-					BOOST_LOG_TRIVIAL(info) << "http post: " << result->uri() << " nr of metrics: " << items_to_send << ", time: " << result->milliseconds() << " ms";
-					//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
-					continue;
-				}
-				
-				if (!result->transport_result())
-				{
-					BOOST_LOG_TRIVIAL(error) << "transport failed";
-				}
 
-				BOOST_LOG_TRIVIAL(error) << "http post: " << result->uri() << " result: " << result->http_result() << " (" << to_string(result->http_result()) << ")";
-				// sleep a little here
+                size_t max_no_of_retries = 60; // ~10min
+                size_t no_of_retries = 0;
 
-				// sleep and retry in 10 sec?
+                while (true)
+                {
+                    auto result = http_handler.perform(request);
+                    if (result->ok())
+                    {
+                        metrics_counter += items_to_send;
+                        to_send.erase(to_send.begin(), to_send.begin() + items_to_send);
+                        //time to commit kafka cursor? every sec?
+                        //commit cursors....
+                        //boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+                        break;
+                    }
 
-				//max reties or die??
+                    if (!result->transport_result())
+                    {
+                        BOOST_LOG_TRIVIAL(warning) << "transport failed, " << " retry_count: " << no_of_retries;
+                    }
+                    else
+                    {
+                        BOOST_LOG_TRIVIAL(error) << "http post: " << result->uri() << " result: " << result->http_result() << " (" << to_string(result->http_result()) << "), " << " retry_count: " << no_of_retries;
+                    }
+
+                    boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+                    no_of_retries++;
+
+                    //max no of retries and die??
+                    if (no_of_retries > max_no_of_retries)
+                    {
+                        BOOST_LOG_TRIVIAL(error) << "no_of_retries > max_no_of_retries - exiting....";
+                        boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+                        return 1; 
+                    }
+                }
 			}
+
+
+            boost::chrono::system_clock::time_point now = boost::chrono::system_clock::now();
+            boost::chrono::milliseconds elapsed = boost::chrono::duration_cast<boost::chrono::milliseconds>(now - last);
+            if (elapsed>sixty_seconds)
+            {
+                BOOST_LOG_TRIVIAL(info) << "nr of metrics: " << metrics_counter;
+                metrics_counter = 0;
+                last = now;
+            }
 
 			/*
             this is not working because of kafka lib
