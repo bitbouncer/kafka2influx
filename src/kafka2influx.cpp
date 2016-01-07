@@ -226,7 +226,8 @@ std::string build_message(const std::vector<tag2>& tags, int message_index, bool
 int main(int argc, char** argv)
 {
     boost::log::trivial::severity_level log_level;
-    boost::log::add_console_log(std::cerr, boost::log::keywords::format = ">> %Message%");
+    //boost::log::add_console_log(std::cerr, boost::log::keywords::format = ">> %Message%", auto_flush=true);
+    boost::log::add_console_log(std::cout, boost::log::keywords::auto_flush = true);
     boost::program_options::options_description desc("options");
     desc.add_options()
         ("help", "produce help message")
@@ -235,7 +236,7 @@ int main(int argc, char** argv)
         ("template", boost::program_options::value<std::string>(), "template")
         ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
 		("database", boost::program_options::value<std::string>(), "database")
-        ("batch_size", boost::program_options::value<int>()->default_value(1000), "batch_size")
+        ("batch_size", boost::program_options::value<int>()->default_value(200), "batch_size")
         ("log_level", boost::program_options::value<boost::log::trivial::severity_level>(&log_level)->default_value(boost::log::trivial::info), "log level to output");
         ;
 
@@ -349,12 +350,13 @@ int main(int argc, char** argv)
             kafka_broker_str += ", ";
     }
 
-    BOOST_LOG_TRIVIAL(info) << "kafka broker(s): " << kafka_broker_str;
+    BOOST_LOG_TRIVIAL(info) << "kafka broker(s)   : " << kafka_broker_str;
     BOOST_LOG_TRIVIAL(info) << "topic             : " << topic;
     BOOST_LOG_TRIVIAL(info) << "template          : " << vm["template"].as<std::string>();
     BOOST_LOG_TRIVIAL(info) << "measurement index : " << mi;
     BOOST_LOG_TRIVIAL(info) << "influxdb          : " << influxuri;
     BOOST_LOG_TRIVIAL(info) << "database          : " << database;
+    BOOST_LOG_TRIVIAL(info) << "batch_size        : " << batch_size;
 
     boost::asio::io_service ios;
     std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(ios));
