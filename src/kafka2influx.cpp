@@ -364,7 +364,7 @@ int main(int argc, char** argv)
 
     try
     {
-        csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 10000);
+        csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 1000000);
         consumer.connect(kafka_brokers);
         //std::vector<int64_t> result = consumer.get_offsets();
         consumer.connect_forever(kafka_brokers);
@@ -458,14 +458,16 @@ int main(int argc, char** argv)
                     if (!result->transport_result())
                     {
                         BOOST_LOG_TRIVIAL(warning) << "transport failed, " << " retry_count: " << no_of_retries;
+                        boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+                        no_of_retries++;
+
                     }
                     else
                     {
                         BOOST_LOG_TRIVIAL(error) << "http post: " << result->uri() << " result: " << result->http_result() << " (" << to_string(result->http_result()) << "), " << " retry_count: " << no_of_retries;
+                        boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+                        no_of_retries++;
                     }
-
-                    boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
-                    no_of_retries++;
 
                     //max no of retries and die??
                     if (no_of_retries > max_no_of_retries)
