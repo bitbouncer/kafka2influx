@@ -387,13 +387,19 @@ int main(int argc, char** argv)
             for (std::vector<csi::kafka::rpc_result<csi::kafka::fetch_response>>::const_iterator i = r.begin(); i != r.end(); ++i)
             {
                 if (i->ec)
-                    continue; // or die??
+                {
+                    return 1; // test with quick death
+                    //continue; // or die??
+                }
                 for (std::vector<csi::kafka::fetch_response::topic_data>::const_iterator j = (*i)->topics.begin(); j != (*i)->topics.end(); ++j)
                 {
                     for (std::vector<std::shared_ptr<csi::kafka::fetch_response::topic_data::partition_data>>::const_iterator k = j->partitions.begin(); k != j->partitions.end(); ++k)
                     {
                         if ((*k)->error_code)
+                        {
+                            return 1; // test with quick death
                             continue; // or die??
+                        }
                         for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator m = (*k)->messages.begin(); m != (*k)->messages.end(); ++m)
                         {
                             if ((*m)->value.is_null())
@@ -448,17 +454,18 @@ int main(int argc, char** argv)
                 size_t max_no_of_retries = 60; // ~10min
                 size_t no_of_retries = 0;
 
-                while (true)
+                while (true) // until we managed to send
                 {
                     auto result = http_handler.perform(request);
                     if (result->ok())
                     {
+                        std::cerr << "influx insert ok, items: " << items_to_send << ", time: " << result->milliseconds() << " ms" << std::endl;
                         metrics_counter += items_to_send;
                         to_send.erase(to_send.begin(), to_send.begin() + items_to_send);
                         //time to commit kafka cursor? every sec?
                         //commit cursors....
                         //boost::this_thread::sleep(boost::posix_time::milliseconds(200));
-                        break;
+                        break; // this is good
                     }
 
                     if (!result->transport_result())
