@@ -237,6 +237,7 @@ int main(int argc, char** argv)
         ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
 		("database", boost::program_options::value<std::string>(), "database")
         ("batch_size", boost::program_options::value<int>()->default_value(200), "batch_size")
+        ("reset_offset", boost::program_options::value<bool>()->default_value(false), "reset_offset")
         ("log_level", boost::program_options::value<boost::log::trivial::severity_level>(&log_level)->default_value(boost::log::trivial::info), "log level to output");
         ;
 
@@ -289,6 +290,12 @@ int main(int argc, char** argv)
     {
         std::cout << "--broker must be specified" << std::endl;
         return 0;
+    }
+
+    bool reset_offset = false;
+    if (vm.count("reset_offset"))
+    {
+        reset_offset = vm["reset_offset"].as<bool>();
     }
 
 	std::string influxuri;
@@ -352,6 +359,7 @@ int main(int argc, char** argv)
 
     BOOST_LOG_TRIVIAL(info) << "kafka broker(s)   : " << kafka_broker_str;
     BOOST_LOG_TRIVIAL(info) << "topic             : " << topic;
+    BOOST_LOG_TRIVIAL(info) << "reset_offset      : " << reset_offset;
     BOOST_LOG_TRIVIAL(info) << "template          : " << vm["template"].as<std::string>();
     BOOST_LOG_TRIVIAL(info) << "measurement index : " << mi;
     BOOST_LOG_TRIVIAL(info) << "influxdb          : " << influxuri;
@@ -366,11 +374,18 @@ int main(int argc, char** argv)
     {
         csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 100000);
         consumer.connect(kafka_brokers);
-        //std::vector<int64_t> result = consumer.get_offsets();
         consumer.connect_forever(kafka_brokers);
 
-	    consumer.set_offset(csi::kafka::earliest_available_offset);
-		//consumer.set_offset(csi::kafka::latest_offsets);
+        if (reset_offset)
+        {
+            consumer.set_offset(csi::kafka::earliest_available_offset);
+        }
+        else
+        {
+            consumer.set_offset(csi::kafka::latest_offsets); // SHOULD pickup offset from kafka consumer offset...
+        }
+
+        //std::vector<int64_t> result = consumer.get_offsets();
 
         csi::http_client http_handler(ios);
 
@@ -388,6 +403,7 @@ int main(int argc, char** argv)
             {
                 if (i->ec)
                 {
+                    BOOST_LOG_TRIVIAL(fatal) << "fetch failed - exiting fast";
                     return 1; // test with quick death
                     //continue; // or die??
                 }
@@ -397,6 +413,7 @@ int main(int argc, char** argv)
                     {
                         if ((*k)->error_code)
                         {
+                            BOOST_LOG_TRIVIAL(fatal) << "fetch failed, partition: " << (*k)->partition_id << ", exiting fast";
                             return 1; // test with quick death
                             continue; // or die??
                         }
@@ -459,7 +476,7 @@ int main(int argc, char** argv)
                     auto result = http_handler.perform(request);
                     if (result->ok())
                     {
-                        std::cerr << "influx insert ok, items: " << items_to_send << ", time: " << result->milliseconds() << " ms" << std::endl;
+                        //std::cerr << "influx insert ok, items: " << items_to_send << ", time: " << result->milliseconds() << " ms" << std::endl;
                         metrics_counter += items_to_send;
                         to_send.erase(to_send.begin(), to_send.begin() + items_to_send);
                         //time to commit kafka cursor? every sec?
