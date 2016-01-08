@@ -383,48 +383,54 @@ int main(int argc, char** argv)
         {
             std::vector<std::string> to_send;
 
-            std::vector<csi::kafka::highlevel_consumer::fetch_response> response = consumer.fetch();
-            for (std::vector<csi::kafka::highlevel_consumer::fetch_response>::const_iterator i = response.begin(); i != response.end(); ++i)
+            auto r = consumer.fetch();
+            for (std::vector<csi::kafka::rpc_result<csi::kafka::fetch_response>>::const_iterator i = r.begin(); i != r.end(); ++i)
             {
-                if (i->ec1 || i->ec2 || i->data->error_code)
-                    continue;
-
-
-                for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator j = i->data->messages.begin(); j != i->data->messages.end(); ++j)
+                if (i->ec)
+                    continue; // or die??
+                for (std::vector<csi::kafka::fetch_response::topic_data>::const_iterator j = (*i)->topics.begin(); j != (*i)->topics.end(); ++j)
                 {
-					if ((*j)->value.is_null())
-                        continue;
-                    std::string line((const char*)(*j)->value.data(), (*j)->value.size());
+                    for (std::vector<std::shared_ptr<csi::kafka::fetch_response::topic_data::partition_data>>::const_iterator k = j->partitions.begin(); k != j->partitions.end(); ++k)
+                    {
+                        if ((*k)->error_code)
+                            continue; // or die??
+                        for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator m = (*k)->messages.begin(); m != (*k)->messages.end(); ++m)
+                        {
+                            if ((*m)->value.is_null())
+                                continue;
+                            std::string line((const char*)(*m)->value.data(), (*m)->value.size());
 
 
-					// might be several messages in a line
-					boost::char_separator<char> sep("\n\r");
-					{
-						tokenizer tok(line, sep);
-						for (tokenizer::iterator k = tok.begin(); k != tok.end(); ++k)
-						{
-							try
-							{
-								auto s = build_message(ot, mi, wildcard, *k);
-								if (s.size())
-								{
-									to_send.push_back(std::move(s));
-								}
-								else
-								{
-									assert(false); // should never get here
-                                    BOOST_LOG_TRIVIAL(error) << "could not parse: " << *k;
-								}
-							}
-							catch (std::exception& e)
-							{
-                                BOOST_LOG_TRIVIAL(error) << e.what();
-							}
-						}
-					}
-                    //highwater_mark_offset[i->data->partition_id] = i->data->highwater_mark_offset;
+                            // might be several messages in a line
+                            boost::char_separator<char> sep("\n\r");
+                            {
+                                tokenizer tok(line, sep);
+                                for (tokenizer::iterator n = tok.begin(); n != tok.end(); ++n)
+                                {
+                                    try
+                                    {
+                                        auto s = build_message(ot, mi, wildcard, *n);
+                                        if (s.size())
+                                        {
+                                            to_send.push_back(std::move(s));
+                                        }
+                                        else
+                                        {
+                                            assert(false); // should never get here
+                                            BOOST_LOG_TRIVIAL(error) << "could not parse: " << *n;
+                                        }
+                                    }
+                                    catch (std::exception& e)
+                                    {
+                                        BOOST_LOG_TRIVIAL(error) << e.what();
+                                    }
+                                }
+                            }
+                            //highwater_mark_offset[i->data->partition_id] = i->data->highwater_mark_offset;
+                        }
+                    }
                 }
-			}
+            }
 
 			//time to send or more that 1000 msgs
 			std::string uri = influxuri + "/write?db=" + database + "&precision=s"; // TBD create it if it does not exist
