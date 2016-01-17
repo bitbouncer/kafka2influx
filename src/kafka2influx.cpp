@@ -392,7 +392,7 @@ int main(int argc, char** argv)
         size_t metrics_counter = 0;
        
         boost::chrono::system_clock::time_point last = boost::chrono::system_clock::now();
-        boost::chrono::milliseconds  sixty_seconds(60 * 1000);
+        boost::chrono::milliseconds sixty_seconds(60 * 1000);
 
         while (true)
         {
