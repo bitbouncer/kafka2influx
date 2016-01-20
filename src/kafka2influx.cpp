@@ -36,9 +36,7 @@
 #include <boost/chrono/thread_clock.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/timer/timer.hpp>
-#include <csi_http/server/http_server.h>
-#include <csi_http/csi_http.h>
-#include <csi_http/client/http_client.h>
+#include <csi_http_client/http_client.h>
 #include <csi_kafka/highlevel_consumer.h>
 #include <csi_kafka/internal/utility.h>
 
