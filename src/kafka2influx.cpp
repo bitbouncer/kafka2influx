@@ -38,8 +38,10 @@
 #include <boost/timer/timer.hpp>
 #include <csi_http_client/http_client.h>
 #include <csi_kafka/highlevel_consumer.h>
+#include <csi_kafka/consumer_coordinator.h>
 #include <csi_kafka/internal/utility.h>
 
+#define CONSUMER_GROUP "kafka2influx"
 
 
 //measurement[, tag_key1 = tag_value1...] field_key = field_value[, field_key2 = field_value2][timestamp]
@@ -231,6 +233,7 @@ int main(int argc, char** argv)
         ("help", "produce help message")
         ("topic", boost::program_options::value<std::string>(), "topic")
         ("broker", boost::program_options::value<std::string>(), "broker")
+        ("consumer_group", boost::program_options::value<std::string>()->default_value(CONSUMER_GROUP), "consumer_group")
         ("template", boost::program_options::value<std::string>(), "template")
         ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
 		("database", boost::program_options::value<std::string>(), "database")
@@ -287,6 +290,17 @@ int main(int argc, char** argv)
     else
     {
         std::cout << "--broker must be specified" << std::endl;
+        return 0;
+    }
+
+    std::string consumer_group;
+    if (vm.count("consumer_group"))
+    {
+        consumer_group = vm["consumer_group"].as<std::string>();
+    }
+    else
+    {
+        std::cout << "--consumer_group must be specified" << std::endl;
         return 0;
     }
 
@@ -357,6 +371,7 @@ int main(int argc, char** argv)
 
     BOOST_LOG_TRIVIAL(info) << "kafka broker(s)   : " << kafka_broker_str;
     BOOST_LOG_TRIVIAL(info) << "topic             : " << topic;
+    BOOST_LOG_TRIVIAL(info) << "consumer_group    : " << consumer_group;
     BOOST_LOG_TRIVIAL(info) << "reset_offset      : " << reset_offset;
     BOOST_LOG_TRIVIAL(info) << "template          : " << vm["template"].as<std::string>();
     BOOST_LOG_TRIVIAL(info) << "measurement index : " << mi;
@@ -370,20 +385,48 @@ int main(int argc, char** argv)
 
     try
     {
-        csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 100000);
-        consumer.connect(kafka_brokers);
-        consumer.connect_forever(kafka_brokers);
+        csi::kafka::consumer_coordinator coordinator(ios, consumer_group);
+        auto coordinator_connect_res = coordinator.connect(kafka_brokers, 1000);
+        if (coordinator_connect_res)
+        {
+            std::cerr << coordinator_connect_res.message() << std::endl;
+            return -1;
+        }
+
+        auto offset_res = coordinator.get_consumer_offset(topic);
+        if (offset_res)
+        {
+            std::cerr << to_string(offset_res.ec) << std::endl;
+            return -1;
+        }
+
+        int32_t ec;
+        auto offsets = parse(offset_res, topic, ec);
+        if (ec)
+        {
+            std::cerr << to_string((csi::kafka::error_codes) ec) << std::endl;
+            return -1;
+        }
 
         if (reset_offset)
         {
-            consumer.set_offset(csi::kafka::earliest_available_offset);
-        }
-        else
-        {
-            consumer.set_offset(csi::kafka::latest_offsets); // SHOULD pickup offset from kafka consumer offset...
+            for (std::vector<csi::kafka::topic_offset>::iterator i = offsets.begin(); i != offsets.end(); ++i)
+                i->offset = csi::kafka::earliest_available_offset;
+            auto res = coordinator.commit_consumer_offset(-1, "kafka2influx", topic, offsets, "reset_offset_command");
+            if (res)
+            {
+                std::cerr << to_string(res.ec) << std::endl;
+                return -1;
+            }
         }
 
-        //std::vector<int64_t> result = consumer.get_offsets();
+
+        csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 100000);
+        consumer.connect(kafka_brokers);
+        consumer.connect_forever(kafka_brokers);
+        consumer.set_offset(offsets); // start where we left...
+
+        std::map<int32_t, int64_t> cursor;
 
         csi::http_client http_handler(ios);
 
@@ -447,7 +490,7 @@ int main(int argc, char** argv)
                                     }
                                 }
                             }
-                            //highwater_mark_offset[i->data->partition_id] = i->data->highwater_mark_offset;
+                            cursor[(*m)->partition] = (*m)->offset;
                         }
                     }
                 }
@@ -515,6 +558,9 @@ int main(int argc, char** argv)
                 BOOST_LOG_TRIVIAL(info) << "nr of metrics: " << metrics_counter;
                 metrics_counter = 0;
                 last = now;
+
+                auto res = coordinator.commit_consumer_offset(-1, "kafka2influx", topic, cursor, "commit");
+
             }
 
 			/*
