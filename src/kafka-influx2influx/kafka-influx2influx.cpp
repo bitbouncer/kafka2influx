@@ -43,8 +43,6 @@
 
 #define CONSUMER_GROUP "kafka-influx2influx"
 
-using namespace std::chrono_literals;
-
 // we inline small parts of kspp to make life easy...
 
 namespace kspp {
