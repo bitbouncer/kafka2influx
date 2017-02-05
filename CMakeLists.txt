@@ -51,35 +51,30 @@ SET(EXT_LIBS ${KAFKA_LIBS} libcurl ${SSL_LIBS} ${ZLIB_LIBS} crypt32 Ws2_32 legac
 
 elseif(APPLE)
 SET(CSI_INCLUDE_PATH 
-  ${CMAKE_SOURCE_DIR}/../rocksdb/include
-  ${CMAKE_SOURCE_DIR}/../kspp
+  ${CMAKE_SOURCE_DIR}/../csi-kafka
   ${CMAKE_SOURCE_DIR}/../csi-async
   ${CMAKE_SOURCE_DIR}/../csi-hcl-asio
 )
 SET(CSI_LIBRARY_PATH 
-  ${CMAKE_SOURCE_DIR}/../rocksdb
-  ${CMAKE_SOURCE_DIR}/../kspp/lib
+  ${CMAKE_SOURCE_DIR}/../csi-kafka/lib
 )
 
 add_definitions(-DBOOST_LOG_DYN_LINK)
-add_definitions(-std=c++14)
+add_definitions(-std=c++11)
 
 set(BOOST_LIBS boost_log_setup boost_log-mt boost_date_time boost_timer boost_thread-mt boost_system boost_program_options boost_filesystem boost_regex boost_chrono boost_iostreams pthread c)
-SET(ROCKSDB_LIBS rocksdb_lite snappy bz2 z)
-SET(LIBRDKAFKA_LIBS rdkafka++ rdkafka)
-SET(EXT_LIBS kspp ${LIBRDKAFKA_LIBS} ${ROCKSDB_LIBS} ${BOOST_LIBS} curl crypto ssl)
+SET(KAFKA_LIBS csi-kafka)
+SET(EXT_LIBS ${KAFKA_LIBS} ${BOOST_LIBS} curl crypto ssl)
 
 elseif(ALPINE_LINUX)
 SET(CSI_INCLUDE_PATH        
-  ${CMAKE_SOURCE_DIR}/../rocksdb/include
-  ${CMAKE_SOURCE_DIR}/../kspp
+  ${CMAKE_SOURCE_DIR}/../csi-kafka
   ${CMAKE_SOURCE_DIR}/../csi-async
   ${CMAKE_SOURCE_DIR}/../csi-hcl-asio
 )
 
 SET(CSI_LIBRARY_PATH
-  ${CMAKE_SOURCE_DIR}/../rocksdb
-  ${CMAKE_SOURCE_DIR}/../kspp/lib
+  ${CMAKE_SOURCE_DIR}/../csi-kafka/lib
 )
 
 set(LIBRARY_OUTPUT_PATH     ${CMAKE_SOURCE_DIR}/lib)
@@ -88,30 +83,27 @@ SET(EXECUTABLE_OUTPUT_PATH  ${CMAKE_SOURCE_DIR}/bin)
 add_definitions(-D_FILE_OFFSET_BITS=64 -D_REENTRANT -DEXTERNAL_LOCKS -DMULTITHREAD)
 add_definitions(-D__LINUX__)
 add_definitions(-fPIC)
-add_definitions(-std=c++14)
+add_definitions(-std=c++11)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 add_definitions(-DBOOST_ALL_DYN_LINK)
 add_definitions(-Wno-deprecated)
 
 #boost_thread
 set(BOOST_LIBS boost_log_setup-mt boost_log-mt boost_date_time-mt boost_timer-mt boost_thread-mt boost_system-mt boost_program_options-mt boost_filesystem-mt boost_regex-mt boost_chrono-mt boost_iostreams-mt pthread rt c)
-SET(ROCKSDB_LIBS rocksdb snappy bz2 z)
-SET(LIBRDKAFKA_LIBS rdkafka++ rdkafka)
-SET(EXT_LIBS kspp ${LIBRDKAFKA_LIBS} ${ROCKSDB_LIBS} ${BOOST_LIBS} curl crypto ssl)
+SET(KAFKA_LIBS csi-kafka)
+SET(EXT_LIBS ${KAFKA_LIBS} ${BOOST_LIBS} curl crypto ssl)
 
 else()
 #LINUX
 SET(CSI_INCLUDE_PATH        
-  ${CMAKE_SOURCE_DIR}/../rocksdb/include
-  ${CMAKE_SOURCE_DIR}/../kspp
+  ${CMAKE_SOURCE_DIR}/../csi-kafka
   ${CMAKE_SOURCE_DIR}/../csi-async
   ${CMAKE_SOURCE_DIR}/../csi-hcl-asio
   ${CMAKE_SOURCE_DIR}/../boost
 )
 
 SET(CSI_LIBRARY_PATH
-  ${CMAKE_SOURCE_DIR}/../rocksdb
-  ${CMAKE_SOURCE_DIR}/../kspp/lib
+  ${CMAKE_SOURCE_DIR}/../csi-kafka/lib
   ${CMAKE_SOURCE_DIR}/../boost/stage/lib
 )
 
@@ -121,14 +113,13 @@ SET(EXECUTABLE_OUTPUT_PATH  ${CMAKE_SOURCE_DIR}/bin)
 add_definitions(-D_FILE_OFFSET_BITS=64 -D_REENTRANT -DEXTERNAL_LOCKS -DMULTITHREAD)
 add_definitions(-D__LINUX__)
 add_definitions(-fPIC)
-add_definitions(-std=c++14)
+add_definitions(-std=c++11)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 add_definitions(-Wno-deprecated)
 
 set(BOOST_LIBS boost_log_setup boost_log boost_date_time boost_timer boost_thread boost_system boost_program_options boost_filesystem boost_regex boost_chrono boost_iostreams pthread rt c)
-SET(ROCKSDB_LIBS rocksdb snappy bz2 z)
-SET(LIBRDKAFKA_LIBS rdkafka++ rdkafka)
-SET(EXT_LIBS kspp ${LIBRDKAFKA_LIBS} ${ROCKSDB_LIBS} ${BOOST_LIBS} curl crypto ssl)
+SET(KAFKA_LIBS csi-kafka)
+SET(EXT_LIBS ${KAFKA_LIBS} ${BOOST_LIBS} curl crypto ssl)
 endif() 
 
 include_directories(${CSI_INCLUDE_PATH} ${CMAKE_SOURCE_DIR})
