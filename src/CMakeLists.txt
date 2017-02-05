@@ -1,0 +1,1 @@
+add_subdirectory(kafka-influx2influx)
