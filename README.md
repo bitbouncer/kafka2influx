@@ -1,12 +1,14 @@
-Imports graphite encoded metrics (from collectd) from kafka (v0.82+) to a database in influxdb. v0.9+
-./kafka-graphite2influx --topic collectd.graphite --broker f013-520-kafka --influxdb 10.1.47.16:8086 --template "hostgroup.host...resource.measurement*" --database metrics
+Platforms: Windows / Linux 
 
+Imports graphite encoded metrics (from collectd) from kafka (v0.82+) to a database in influxdb. v0.9+
+```
+kafka-graphite2influx --topic collectd.graphite --broker f013-520-kafka --influxdb 10.1.47.16:8086 --template "hostgroup.host...resource.measurement*" --database metrics
+```
 
 Imports influxdb encoded metrics from kafka 0.10+ to influxdb. uses the timestamp in kafka message.
-./kafka-influx2influx --topic kspp_metrics --broker f013-520-kafka --influxdb 10.1.47.16:8086 --database kspp_metrics
-
-Platforms: Windows / Linux / Mac
-
+```
+kafka-influx2influx --topic kspp_metrics --broker f013-520-kafka --influxdb 10.1.47.16:8086 --database kspp_metrics
+```
 
 ## Ubuntu 16 x64:
 
@@ -15,13 +17,16 @@ Install build tools
 sudo apt-get install -y automake autogen shtool libtool git wget cmake unzip build-essential libboost-all-dev g++ python-dev autotools-dev libicu-dev zlib1g-dev openssl libssl-dev libbz2-dev libsnappy-dev
 
 ```
-Build
+Get the source
 ```
 git clone https://github.com/bitbouncer/csi-kafka.git
 git clone https://github.com/bitbouncer/csi-async.git
 git clone https://github.com/bitbouncer/csi-hcl-asio.git
 git clone https://github.com/bitbouncer/kafka2influx.git
+```
 
+Build
+```
 cd csi-kafka
 bash rebuild_linux.sh
 cd ..
@@ -50,11 +55,6 @@ tar xf boost_$BOOST_VERSION.tar.gz
 rm -f boost_$BOOST_VERSION.tar.gz
 mv boost_$BOOST_VERSION boost
 
-cd boost
-./bootstrap.sh
-./b2 -j 4
-cd ..
-
 git clone https://github.com/bitbouncer/csi-kafka.git
 git clone https://github.com/bitbouncer/csi-async.git
 git clone https://github.com/bitbouncer/csi-hcl-asio.git
@@ -63,6 +63,11 @@ git clone https://github.com/bitbouncer/kafka2influx.git
 
 Build
 ```
+cd boost
+./bootstrap.sh
+./b2 -j 4
+cd ..
+
 cd csi-kafka
 bash rebuild_linux.sh
 cd ..
