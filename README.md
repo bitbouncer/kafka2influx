@@ -1,18 +1,12 @@
 Imports graphite encoded metrics (from collectd) from kafka (v0.82+) to a database in influxdb. v0.9+
+./kafka-graphite2influx --topic collectd.graphite --broker f013-520-kafka --influxdb 10.1.47.16:8086 --template "hostgroup.host...resource.measurement*" --database metrics
 
-Create the database before running kafka2influx
 
-
-./kafka2influx --topic collectd.graphite --broker f013-520-kafka --influxdb 10.1.47.16:8086 --template "hostgroup.host...resource.measurement*" --database metrics
-
-Currently no support for storing kafka consumer offsets (missing support in kafka lib) so consumption starts at end of kafka log.
-
-Increasing the messages in batch to 1000 seems to crash influxdb - this is the reason why we're not starting from beginning of log.
-
+Imports influxdb encoded metrics from kafka 0.10+ to influxdb. uses the timestamp in kafka message.
+./kafka-influx2influx --topic kspp_metrics --broker f013-520-kafka --influxdb 10.1.47.16:8086 --database kspp_metrics
 
 Platforms: Windows / Linux / Mac
 
-This is work-in-progress
 
 ## Ubuntu 16 x64:
 
@@ -37,6 +31,47 @@ bash rebuild_linux.sh
 cd ..
 
 ```
+
+## Centos 7
+
+Install build tools
+```
+yum -y update
+yum -y groupinstall 'Development Tools'
+yum -y install automake autogen libtool git wget cmake unzip openssl redhat-lsb-core postgresql-devel openssl-devel bzip2-devel openldap  openldap-clients openldap-devel libidn-devel curl curl-devel
+```
+Get the source
+```
+export BOOST_VERSION=1_62_0
+export BOOST_VERSION_DOTTED=1.62.0
+
+wget http://sourceforge.net/projects/boost/files/boost/$BOOST_VERSION_DOTTED/boost_$BOOST_VERSION.tar.gz/download -Oboost_$BOOST_VERSION.tar.gz
+tar xf boost_$BOOST_VERSION.tar.gz
+rm -f boost_$BOOST_VERSION.tar.gz
+mv boost_$BOOST_VERSION boost
+
+cd boost
+./bootstrap.sh
+./b2 -j 4
+cd ..
+
+git clone https://github.com/bitbouncer/csi-kafka.git
+git clone https://github.com/bitbouncer/csi-async.git
+git clone https://github.com/bitbouncer/csi-hcl-asio.git
+git clone https://github.com/bitbouncer/kafka2influx.git
+```
+
+Build
+```
+cd csi-kafka
+bash rebuild_linux.sh
+cd ..
+
+cd kafka2influx
+bash rebuild_linux.sh
+cd ..
+```
+
 
 ## MacOS X
 

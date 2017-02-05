@@ -1,10 +1,3 @@
-//https://github.com/influxdb/influxdb/pull/3125
-
-//servers.localhost.cpu.loadavg.10
-//Template:.host.resource.measurement*
-//Output : measurement = loadavg.10 tags = host = localhost resource = cpu
-
-
 #include <fstream>
 #include <assert.h>
 #include <boost/make_shared.hpp>
@@ -179,12 +172,9 @@ int main(int argc, char** argv) {
   desc.add_options()
     ("help", "produce help message")
     ("topic", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "topic")
-    ("partitions", boost::program_options::value<int>()->default_value(8), "partitions")
-    //("broker", boost::program_options::value<std::string>()->default_value("localhost"), "broker")
-    ("broker", boost::program_options::value<std::string>()->default_value("10.101.100.80"), "broker")
+    ("broker", boost::program_options::value<std::string>()->default_value("localhost"), "broker")
     ("consumer_group", boost::program_options::value<std::string>()->default_value(CONSUMER_GROUP), "consumer_group")
-    //("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
-    ("influxdb", boost::program_options::value<std::string>()->default_value("10.101.100.80:8086"), "influxdb")
+    ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
     ("database", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "database")
     ("batch_size", boost::program_options::value<int>()->default_value(200), "batch_size")
     ("reset_offset", boost::program_options::value<bool>()->default_value(false), "reset_offset")
@@ -208,14 +198,6 @@ int main(int argc, char** argv) {
     topic = vm["topic"].as<std::string>();
   } else {
     std::cout << "--topic must be specified" << std::endl;
-    return 0;
-  }
-
-  int nr_of_partitions = 1;
-  if (vm.count("partitions")) {
-    nr_of_partitions = vm["partitions"].as<int>();
-  } else {
-    std::cout << "--partitions must be specified" << std::endl;
     return 0;
   }
 
@@ -266,7 +248,6 @@ int main(int argc, char** argv) {
 
   BOOST_LOG_TRIVIAL(info) << "kafka broker(s)   : " << broker;
   BOOST_LOG_TRIVIAL(info) << "topic             : " << topic;
-  //BOOST_LOG_TRIVIAL(info) << "nr_of_partitions  : " << nr_of_partitions;
   BOOST_LOG_TRIVIAL(info) << "consumer_group    : " << consumer_group;
   BOOST_LOG_TRIVIAL(info) << "reset_offset      : " << reset_offset;
   BOOST_LOG_TRIVIAL(info) << "influxdb          : " << influxuri;
