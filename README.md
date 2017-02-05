@@ -22,13 +22,19 @@ sudo apt-get install -y automake autogen shtool libtool git wget cmake unzip bui
 
 ```
 Build
+```
 git clone https://github.com/bitbouncer/csi-kafka.git
 git clone https://github.com/bitbouncer/csi-async.git
 git clone https://github.com/bitbouncer/csi-hcl-asio.git
 git clone https://github.com/bitbouncer/kafka2influx.git
 
-```
+cd csi-kafka
+bash rebuild_linux.sh
+cd ..
 
+cd kafka2influx
+bash rebuild_linux.sh
+cd ..
 
 ```
 
