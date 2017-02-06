@@ -337,8 +337,9 @@ int main(int argc, char** argv) {
               continue;
             std::string key((const char*)m->key.data(), m->key.size());
             auto val = std::make_shared<std::string>((const char*)m->value.data(), m->value.size());
-            batch_handler.produce(std::make_shared<kspp::krecord<std::string, std::string>>(key, val, m->timestamp));
+            batch_handler.produce(std::make_shared<kspp::krecord<std::string, std::string>>(key, val, m->timestamp)); // add the offsets here and let the batch handler tell whats committed TBD
             batch_handler.process_one();
+            cursor[k->partition_id] = m->offset; // this is probably a bit bad and we should really not write the offsets until we actually have committed them to influx. we will loose up to 200 messages here....
           }
         }
       }
@@ -349,7 +350,7 @@ int main(int argc, char** argv) {
     }
 
     if (kspp::milliseconds_since_epoch()>next_commit) {
-      auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, offsets, "graff");
+      auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, cursor, "graff");
       next_commit = kspp::milliseconds_since_epoch() + 60000; // once per minute
     }
 
