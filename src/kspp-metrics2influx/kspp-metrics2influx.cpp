@@ -46,6 +46,13 @@ static std::string default_kafka_broker() {
   return "localhost";
 }
 
+static std::string default_influxdb() {
+  if (const char* env_p = std::getenv("INFLUXDB_ADDRESS"))
+    return std::string(env_p);
+  return "localhost:8086";
+}
+
+
 namespace kspp {
   inline int64_t milliseconds_since_epoch() {
     return std::chrono::duration_cast<std::chrono::milliseconds>
@@ -104,7 +111,7 @@ class influx_batch_handler
   virtual void close() {}
 
   virtual int produce(std::shared_ptr<kspp::krecord<std::string, std::string>> r) {
-    std::string s = r->key + " value=" + *r->value + " " + std::to_string(r->event_time) + "\n";
+    std::string s = r->key + " value=" + *(r->value) + " " + std::to_string(r->event_time) + "\n";
     _messages.push_back(s);
     return 0;
   }
@@ -182,7 +189,7 @@ int main(int argc, char** argv) {
     ("topic", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "topic")
     ("broker", boost::program_options::value<std::string>()->default_value(default_kafka_broker()), "broker")
     ("consumer_group", boost::program_options::value<std::string>()->default_value(CONSUMER_GROUP), "consumer_group")
-    ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
+    ("influxdb", boost::program_options::value<std::string>()->default_value(default_influxdb()), "influxdb")
     ("database", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "database")
     ("batch_size", boost::program_options::value<int>()->default_value(200), "batch_size")
     ("reset_offset", boost::program_options::value<bool>()->default_value(false), "reset_offset")
@@ -329,9 +336,8 @@ int main(int argc, char** argv) {
             if (m->key.size() == 0 || m->value.data() == NULL || m->value.data() == 0)
               continue;
             std::string key((const char*)m->key.data(), m->key.size());
-            auto val = std::make_shared<std::string>((const char*)m->value.data(), m->value.size(), m->timestamp);
-            batch_handler.produce(std::make_shared<kspp::krecord<std::string, std::string>>(key, val));
-            std::cerr << m->timestamp << " : " << key << std::endl;
+            auto val = std::make_shared<std::string>((const char*)m->value.data(), m->value.size());
+            batch_handler.produce(std::make_shared<kspp::krecord<std::string, std::string>>(key, val, m->timestamp));
             batch_handler.process_one();
           }
         }
@@ -343,7 +349,7 @@ int main(int argc, char** argv) {
     }
 
     if (kspp::milliseconds_since_epoch()>next_commit) {
-      //auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, offsets, "graff");
+      auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, offsets, "graff");
       next_commit = kspp::milliseconds_since_epoch() + 60000; // once per minute
     }
 
