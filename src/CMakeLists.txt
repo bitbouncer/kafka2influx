@@ -1,1 +1,1 @@
-add_subdirectory(kafka-influx2influx)
+add_subdirectory(kspp-metrics2influx)

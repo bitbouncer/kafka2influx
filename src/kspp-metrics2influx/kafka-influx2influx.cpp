@@ -10,6 +10,7 @@
 #include <chrono>
 #include <sstream>
 #include <array>
+#include <cstdlib>
 #include <stdexcept>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
@@ -37,6 +38,13 @@
 #define CONSUMER_GROUP "kafka-influx2influx"
 
 // we inline small parts of kspp to make life easy...
+
+
+static std::string default_kafka_broker() {
+  if (const char* env_p = std::getenv("KAFKA_BROKER"))
+    return std::string(env_p);
+  return "localhost";
+}
 
 namespace kspp {
   inline int64_t milliseconds_since_epoch() {
@@ -172,7 +180,7 @@ int main(int argc, char** argv) {
   desc.add_options()
     ("help", "produce help message")
     ("topic", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "topic")
-    ("broker", boost::program_options::value<std::string>()->default_value("localhost"), "broker")
+    ("broker", boost::program_options::value<std::string>()->default_value(default_kafka_broker()), "broker")
     ("consumer_group", boost::program_options::value<std::string>()->default_value(CONSUMER_GROUP), "consumer_group")
     ("influxdb", boost::program_options::value<std::string>()->default_value("localhost:8086"), "influxdb")
     ("database", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "database")
