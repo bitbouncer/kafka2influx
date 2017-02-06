@@ -321,9 +321,9 @@ int main(int argc, char** argv) {
             if (m->key.size() == 0 || m->value.data() == NULL || m->value.data() == 0)
               continue;
             std::string key((const char*)m->key.data(), m->key.size());
-            auto val = std::make_shared<std::string>((const char*)m->value.data(), m->value.size());
+            auto val = std::make_shared<std::string>((const char*)m->value.data(), m->value.size(), m->timestamp);
             batch_handler.produce(std::make_shared<kspp::krecord<std::string, std::string>>(key, val));
-            std::cerr << "+";
+            std::cerr << m->timestamp << " : " << key << std::endl;
             batch_handler.process_one();
           }
         }
@@ -335,7 +335,7 @@ int main(int argc, char** argv) {
     }
 
     if (kspp::milliseconds_since_epoch()>next_commit) {
-      auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, offsets, "graff");
+      //auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, offsets, "graff");
       next_commit = kspp::milliseconds_since_epoch() + 60000; // once per minute
     }
 

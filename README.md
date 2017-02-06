@@ -5,7 +5,7 @@ Imports graphite encoded metrics (from collectd) from kafka (v0.82+) to a databa
 kafka-graphite2influx --topic collectd.graphite --broker f013-520-kafka --influxdb 10.1.47.16:8086 --template "hostgroup.host...resource.measurement*" --database metrics
 ```
 
-Imports influxdb encoded metrics from kafka 0.10+ to influxdb. uses the timestamp in kafka message.
+Imports influxdb encoded metrics from kafka influxdb. SHOULD use the timestamp in kafka message so a 0.10+ broker is needed
 ```
 kafka-influx2influx --topic kspp_metrics --broker f013-520-kafka --influxdb 10.1.47.16:8086 --database kspp_metrics
 ```
