@@ -310,7 +310,6 @@ int main(int argc, char** argv) {
 
   csi::kafka::highlevel_consumer consumer(ios, topic, 1000, 100000);
   consumer.connect(broker);
-  consumer.connect_forever(broker);
   consumer.set_offset(offsets); // start where we left...
 
   std::map<int32_t, int64_t> cursor;
