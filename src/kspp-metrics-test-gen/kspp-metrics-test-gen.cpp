@@ -95,13 +95,16 @@ int main(int argc, char** argv) {
   boost::thread bt(boost::bind(&boost::asio::io_service::run, &ios));
 
 
-  csi::kafka::highlevel_producer producer(ios, topic, 1000, 100000);
-  producer.connect(broker);
+  csi::kafka::highlevel_producer producer(ios, topic, -1, 1000, 100000);
   
+  while (producer.connect(broker, 1000)) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    BOOST_LOG_TRIVIAL(info) << "retrying to connect";
+  }
+
   size_t metrics_counter = 0;
   int64_t next_batch = milliseconds_since_epoch();
 
-  std::vector<std::string> metrics;
   std::vector<std::string> metrics_type = {"lag", "in_count", "errors", "out_count"};
   std::vector<std::string> topologys = {"topology1", "topology2"};
   std::vector<std::string> depths = {"0", "1"};
@@ -114,26 +117,28 @@ int main(int argc, char** argv) {
   while (true) {
     if (milliseconds_since_epoch() > next_batch) {
       std::vector<std::shared_ptr<csi::kafka::basic_message>> v;
-      for (auto metric : metrics)
-        for (auto metric : metrics_type)
-          for (auto topology : topologys)
-            for (auto depth : depths)
-              for (auto key_type : key_types)
-                for (auto value_type : value_types)
-                  for (auto processor : processors)
-                    for (auto partition : partitions) {
-                      std::string key = metric + ",app_id=kspp-metrics-test-gen,depth=" + depth + ",key_type=" + key_type + ",partition=" + partition + ",processor_type=" + processor + ",topology=" + topology + ",value_type=" + value_type;
-                      std::string val = std::to_string(value);
-                      value++;
-                      v.push_back(std::make_shared<csi::kafka::basic_message>(key, val, milliseconds_since_epoch()));
-                    }
-      producer.send_sync(v);
+      for (auto metric : metrics_type)
+        for (auto topology : topologys)
+          for (auto depth : depths)
+            for (auto key_type : key_types)
+              for (auto value_type : value_types)
+                for (auto processor : processors)
+                  for (auto partition : partitions) {
+                    std::string key = metric + ",app_id=kspp-metrics-test-gen,depth=" + depth + ",key_type=" + key_type + ",partition=" + partition + ",processor_type=" + processor + ",topology=" + topology + ",value_type=" + value_type;
+                    std::string val = std::to_string(value);
+                    value++;
+                    v.push_back(std::make_shared<csi::kafka::basic_message>(key, val, milliseconds_since_epoch()));
+                  }
+      auto res = producer.send_sync(v);
       next_batch = milliseconds_since_epoch() + 10000;
     }
     
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(1000ms);
   }
+
+
+
   return 0;
 }
 

@@ -275,9 +275,9 @@ int main(int argc, char** argv) {
   influx_batch_handler batch_handler(influxuri + "/write?db=" + database + "&precision=ms", batch_size);
 
   boost::asio::io_service ios;
-  std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(ios));
-  boost::thread bt(boost::bind(&boost::asio::io_service::run, &ios));
-  
+  std::unique_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(ios));
+  std::thread run_thread([&ios] { ios.run(); });
+
   csi::kafka::consumer_coordinator coordinator(ios, consumer_group);
   auto coordinator_connect_res = coordinator.connect(broker, 1000);
   if (coordinator_connect_res) {
