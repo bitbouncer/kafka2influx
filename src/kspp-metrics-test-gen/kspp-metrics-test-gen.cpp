@@ -132,7 +132,6 @@ int main(int argc, char** argv) {
       auto res = producer.send_sync(v);
       next_batch = milliseconds_since_epoch() + 10000;
     }
-  
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
