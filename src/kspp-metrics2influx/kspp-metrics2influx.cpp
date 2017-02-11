@@ -146,7 +146,8 @@ class influx_batch_handler
         }
 
         if (!result->transport_result()) {
-          BOOST_LOG_TRIVIAL(warning) << "transport failed, " << " retry_count: " << no_of_retries;
+          BOOST_LOG_TRIVIAL(warning) << "transport failed, content_length" << request->tx_content_length() << " retry_count: " << no_of_retries;
+          std::cerr << std::endl << request->tx_content() << std::endl;
           boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
           no_of_retries++;
 
@@ -191,7 +192,7 @@ int main(int argc, char** argv) {
     ("consumer_group", boost::program_options::value<std::string>()->default_value(CONSUMER_GROUP), "consumer_group")
     ("influxdb", boost::program_options::value<std::string>()->default_value(default_influxdb()), "influxdb")
     ("database", boost::program_options::value<std::string>()->default_value("kspp_metrics"), "database")
-    ("batch_size", boost::program_options::value<int>()->default_value(200), "batch_size")
+    ("batch_size", boost::program_options::value<int>()->default_value(100), "batch_size")
     ("reset_offset", boost::program_options::value<bool>()->default_value(false), "reset_offset")
     ("log_level", boost::program_options::value<boost::log::trivial::severity_level>(&log_level)->default_value(boost::log::trivial::info), "log level to output");
   ;
@@ -313,7 +314,7 @@ int main(int argc, char** argv) {
   consumer.set_offset(offsets); // start where we left...
 
   std::map<int32_t, int64_t> cursor;
-  int64_t next_commit = kspp::milliseconds_since_epoch() + 60000;
+  int64_t next_commit = kspp::milliseconds_since_epoch() + 15000;
 
   size_t metrics_counter = 0;
 
@@ -350,7 +351,11 @@ int main(int argc, char** argv) {
 
     if (kspp::milliseconds_since_epoch()>next_commit) {
       auto res = coordinator.commit_consumer_offset(-1, consumer_group, topic, cursor, "graff");
-      next_commit = kspp::milliseconds_since_epoch() + 60000; // once per minute
+     /* BOOST_LOG_TRIVIAL(info) << "committed offsets";
+      for (auto i : cursor) {
+        std::cerr << "p:" << i.first << "->" << i.second << std::endl;
+      }*/
+      next_commit = kspp::milliseconds_since_epoch() + 15000; // once per 15sec
     }
 
   }
